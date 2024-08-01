@@ -32,18 +32,16 @@ sigma = np.sqrt(dt/yrToSec) #magnitude of stochasticity (1 degree over 80 years)
 M = 25                      #memory bank length - we choose a fixed value here
 CM = np.zeros(int(years/dt))                    #committed minority
 CM[0] = 0.1
-r = CM[0]                       #speaking rate of opinion A is initially E
+r = CM[0]                       #speaking rate of opinion A is initially CM=0.1 (no one uncommitted holds opinion A)
 r_track = np.zeros(int(years/dt))  #to track the speaking rate of A over time without interferring with root finding
 r_track[0] = r
 error = 1e-6                #error bound in root finding search
 
 #extreme events (EE) parameters
-lambda_0 = 16
-#lambda_0 = 48/12            #number of baseline EE per year from 2011-2022 data (no human influence)
+lambda_0 = 4                 #number of baseline EE per year
 EE = np.zeros(int(years/dt)) #to track number of extreme events per timestep
 EE[0] = 0
-mu = 0.0045
-#mu = 0.014                #shift in E after extreme event occurs
+mu = 0.014                #shift in E after extreme event occurs
 delta = 0.002                #decay rate of the shift in E
 
 #initial conditions
@@ -66,8 +64,8 @@ emis_ppm_best = dt*emis_best/7.76 #convert from Gt to ppm CO2, multiply by dt to
 emis_ppm_worst = dt*emis_worst/7.76
 
 repetitions=10
-r_end = np.zeros(repetitions) #HERE HERE HERE
-CM_max = np.zeros(repetitions) #HERE HERE HERE
+r_end = np.zeros(repetitions)
+CM_max = np.zeros(repetitions)
 #run simulation
 for rep in range(repetitions):
     #set things to 0 as needed
@@ -86,8 +84,8 @@ for rep in range(repetitions):
             r = r_new
             r_new = r_temp
         r_track[t] = r
-        if r==1: #HERE HERE HERE
-            break #HERE HERE HERE
+        if r==1: 
+            break 
         #get emissions level to plug into climate model
         emis_ppm_actual[t] = r*emis_ppm_best[t] + (1-r)*emis_ppm_worst[t]
         conc[t] = conc[t-1] + emis_ppm_actual[t]    
@@ -102,8 +100,8 @@ for rep in range(repetitions):
         EE[t] = rnd.poisson(lam)                 #number of extreme events in the timestep
         CM[t] = CM[0] + mu*sum(EE[i]*np.exp(-delta*(t-i)) for i in range(t+1))    
     #save data, each new row is a new simulation
-    r_end[rep] = r     #HERE HERE HERE
-    CM_max[rep] = np.max(CM[0:t]) #HERE HERE HERE
+    r_end[rep] = r   
+    CM_max[rep] = np.max(CM[0:t])
     #pd.DataFrame(T).T.to_csv(r'/home/swyse/Documents/Graduate School/Thesis/Figures/SCM/data_temp2.csv', index=False, header=False, mode='a')    #temperature
     #pd.DataFrame(r_track).T.to_csv(r'/home/swyse/Documents/Graduate School/Thesis/Figures/SCM/data_r2.csv', index=False, header=False, mode='a') #the speaking rate of opinion A over time
     #pd.DataFrame(CM).T.to_csv(r'/home/swyse/Documents/Graduate School/Thesis/Figures/SCM/data_CM2.csv', index=False, header=False, mode='a')     #committed minority proportion (drives speaking rate of A)
