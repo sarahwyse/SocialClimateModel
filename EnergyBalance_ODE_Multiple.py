@@ -25,29 +25,31 @@ data = pd.read_csv(r'Carbon_dioxide_Gt_CO2_yr.csv')
 plt.figure()
 col = ["deepskyblue", "darkblue", "orange", "red", "darkred"]
 
-for j in range(5,0,-1):
+for j in range(5,0,-1): #loop though each of the SSP scenarios (backwards to match legend order to vertical order in figure)
+
     emis = np.zeros(int(years/dt))
-    for i in range(1,len(data.years)-1):
+    for i in range(1,len(data.years)-1): #interpolate IPCC projections to have a projection for every timestep
         emis[(i-1)*count:(i-1)*count+count] = np.linspace(data.iloc[i,j], data.iloc[i+1,j], num=count, endpoint=False)
     emis_ppm = dt*emis/7.76 #convert from Gt to ppm CO2, multiply by dt to average emissions across the year
     
-    #add net emissions each year to compute CO2 concentration
+    #add net emissions each year to compute cumulative CO2 concentration
     conc = np.zeros(int(years/dt)) #track concentration of CO2 in ppm
     conc[0] = 410   #2020 CO2 concentration from IPCC report
     for i in range(1,int(years/dt)):
         conc[i] = conc[i-1] + emis_ppm[i]
     
-    #initial conditions
+    #set initial condition for temperature
     T = np.zeros(int(years/dt))
-    T[0] = 14.9  #pre-ind was 13.7
+    T[0] = 14.9  #pre-ind was 13.7, simulation starts start in 2020
     
-    #run simulation
+    #run simulation of global average temperature over time using an energy balance ODE
     for t in range(1, int(years/dt)):
         T[t] = T[t-1] + dt*(S*(1-alpha)/4 - (A+B*T[t-1]) + a*np.log(conc[t-1]/pre_ind))/C
             
     #plot
     plt.plot(np.linspace(2020,2020+years, int(years/dt)), T-T_PI, color = col[j-1])
 
+#plot adjustments
 plt.legend(['SSP5-8.5', 'SSP3-7.0', 'SSP2-4.5', 'SSP1-2.6', 'SSP1-1.9'])    
 plt.xlabel('Time (years)')
 plt.ylabel('Temperature change ($\degree$C)')
