@@ -4,9 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import scipy.stats as st
-import time
-
-t1 = time.time()
 
 #constants
 yrToSec = 365.25*24*60*60   #model is in seconds, use this as part of C to convert to years
@@ -28,6 +25,7 @@ sigma = np.sqrt(dt/yrToSec) #magnitude of stochasticity (1-2 degrees over 80 yea
 
 count = int(10/dt) #10 is number of years between IPCC projections and divided by dt gives size of linspace needed to interpolate data
 
+#set up figure for projections to be added to
 plt.figure(figsize=(6,6))
 #set text size (do this first or else it doesn't consistently work!!)
 plt.rc('axes', titlesize=20)     # fontsize of the axes title
@@ -40,46 +38,41 @@ col = ["deepskyblue", "darkblue", "orange", "red", "darkred"]
 #import IPCC CO2 emissions projections, data.___ indicates scenario used
 data = pd.read_csv(r'Carbon_dioxide_Gt_CO2_yr.csv')
 
-#run for each of the climate scenarios
-for j in range(5,0,-1):
+for j in range(5,0,-1): #loop though each of the SSP scenarios (backwards to match legend order to vertical order in figure)
     emis = np.zeros(int(years/dt))
-    for i in range(1,len(data.years)-1):
+    for i in range(1,len(data.years)-1): #interpolate IPCC projections to have a projection for every timestep
         emis[(i-1)*count:(i-1)*count+count] = np.linspace(data.iloc[i,j], data.iloc[i+1,j], num=count, endpoint=False)
     emis_ppm = dt*emis/7.76 #convert from Gt to ppm CO2, multiply by dt to average emissions across the year
     
-    #add net emissions each year to compute CO2 concentration
+    #add net emissions each year to compute cumulative CO2 concentration
     conc = np.zeros(int(years/dt)) #track concentration of CO2 in ppm
     conc[0] = 410   #2020 CO2 concentration from IPCC report
     for i in range(1,int(years/dt)):
         conc[i] = conc[i-1] + emis_ppm[i]
     
-    #initial conditions
+    #set initial conditions
     T = np.zeros([int(years/dt), repetitions])
     T[0,] = 14.9  #pre-ind was 13.7
-    W = np.zeros([int(years/dt), repetitions])
+    W = np.zeros([int(years/dt), repetitions]) #stochastic equation initial condition
     
     #run simulation
     for rep in range(repetitions):
         for t in range(1, int(years/dt)):
             #define a random number to add stochasticity
             rand = np.random.normal(0, 1, 1)
-            #solve stoch via Euler Maruyama
+            #solve stochastic equation via Euler Maruyama
             W[t, rep] = W[t-1, rep] - theta*W[t-1, rep]*dt + sigma*rand
             #solve climate model via Euler Maruyama
             T[t, rep] = T[t-1, rep] + dt*(S*(1-alpha)/4 - (A+B*T[t-1, rep]) + a*np.log(conc[t-1]/pre_ind))/C + W[t, rep]
     
     #plot each scenario
-    x = np.linspace(2020,2020+years, int(years/dt))
-    #plot mean
-    plt.plot(x, T.mean(1)-T_PI, color = col[j-1])
-    #plot 95% confidence interval window
-    lower, upper = st.t.interval(confidence=0.95, df=int(years/dt)-1, loc=T.mean(1)-T_PI, scale=T.std(1))
-    plt.fill_between(x, lower, upper, color = col[j-1], alpha = 0.25)
+    x = np.linspace(2020,2020+years, int(years/dt))    
+    plt.plot(x, T.mean(1)-T_PI, color = col[j-1]) #plot mean
+    lower, upper = st.t.interval(confidence=0.95, df=int(years/dt)-1, loc=T.mean(1)-T_PI, scale=T.std(1)) 
+    plt.fill_between(x, lower, upper, color = col[j-1], alpha = 0.25) #plot 95% confidence interval window
 
 plt.legend(['SSP5-8.5', '_', 'SSP3-7.0', '_', 'SSP2-4.5', '_', 'SSP1-2.6', '_', 'SSP1-1.9'])  
 plt.xlabel('Time (years)')
 plt.ylabel('Temperature change ($\degree$C)')
 
 plt.show()
-
-t2 = time.time() - t1
